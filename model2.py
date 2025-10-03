@@ -27,28 +27,6 @@ X = expr.T                                 # samples x features
 # =========================
 # 2) Label parsing
 # =========================
-# def label_from_sample(gsm):
-#     fields = []
-#     for key in ("characteristics_ch1", "source_name_ch1", "title", "description"):
-#         val = gsm.metadata.get(key, [])
-#         if isinstance(val, (list, tuple)):
-#             fields.extend(val)
-#         elif val:
-#             fields.append(val)
-#     txt = " | ".join(str(v).lower() for v in fields)
-#     txt = txt.replace("tumour", "tumor")
-#     txt = txt.replace("non-tumor", "normal")
-#     txt = txt.replace("adjacent normal tissue", "normal")
-
-#     if re.search(r"\b(normal|healthy|control|adjacent normal|nonmalignant)\b", txt):
-#         return "normal"
-#     if re.search(r"\b(tumor|carcinoma|cancer|malignan)\w*", txt):
-#         return "tumor"
-#     return None
-
-# =========================
-# 2) Label parsing
-# =========================
 def label_from_sample(gsm):
     grade = gsm.metadata.get("characteristics_ch1", [None])[2].replace("grade: ", "").strip()
     return "normal" if grade == "normal" else "tumor"
@@ -61,34 +39,45 @@ y = pd.Series({sid: labels[sid] for sid in keep}).loc[X.index]
 print("After label parse -> Samples:", X.shape[0], "Features:", X.shape[1], "Class counts:", y.value_counts().to_dict())
 
 # =========================
-# 3) Preprocess + PCA (PVE-based)
+# 3) Encode labels
 # =========================
-# log2 transform if needed
-if X.max().max() > 50:
-    X = np.log2(X + 1.0)
-
-# drop empty columns
-X = X.dropna(axis=1, how="all")
-
-# encode labels
 y_bin = (y == "tumor").astype(int)
 
-# standardize all features
+# =========================
+# 4) Split dataset (stratified)
+# =========================
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_bin, test_size=0.25, stratify=y_bin, random_state=42
+)
+print("Train/Test sizes:", X_train.shape, X_test.shape)
+
+# =========================
+# 5) Preprocess + PCA (fit only on training data)
+# =========================
+# log2 transform if needed
+if X_train.max().max() > 50:
+    X_train = np.log2(X_train + 1.0)
+    X_test = np.log2(X_test + 1.0)
+
+# drop empty columns
+X_train = X_train.dropna(axis=1, how="all")
+X_test = X_test[X_train.columns]  # keep same features
+
+# Standardize
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
-# PCA
+# PCA on training set
 pca_full = PCA()
-pca_full.fit(X_scaled)
-
-# PVE
+pca_full.fit(X_train_scaled)
 pve = pca_full.explained_variance_ratio_
 cumulative_pve = np.cumsum(pve)
 
 # Plot cumulative PVE
 plt.figure(figsize=(8,5))
 plt.plot(np.arange(1, len(pve)+1), cumulative_pve, marker='o')
-plt.axhline(y=0.95, color='r', linestyle='--')  # 95% threshold
+plt.axhline(y=0.95, color='r', linestyle='--')
 plt.xlabel('Number of Principal Components')
 plt.ylabel('Cumulative PVE')
 plt.title('PCA - Cumulative Proportion of Variance Explained')
@@ -100,23 +89,17 @@ plt.show()
 n_components_95 = np.argmax(cumulative_pve >= 0.95) + 1
 print(f"Number of PCs to keep (95% PVE): {n_components_95}")
 
-# Transform dataset
+# Transform both train and test sets
 pca = PCA(n_components=n_components_95)
-X_pca = pca.fit_transform(X_scaled)
+X_train_pca = pca.fit_transform(X_train_scaled)
+X_test_pca = pca.transform(X_test_scaled)
 
-# Convert to DataFrame for downstream consistency
-X = pd.DataFrame(X_pca, index=X.index, columns=[f"PC{i+1}" for i in range(n_components_95)])
-
-# =========================
-# 4) Split (stratified)
-# =========================
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y_bin, test_size=0.25, stratify=y_bin, random_state=42
-)
-print("Train/Test sizes:", X_train.shape, X_test.shape)
+# Convert to DataFrame for consistency
+X_train = pd.DataFrame(X_train_pca, index=X_train.index, columns=[f"PC{i+1}" for i in range(n_components_95)])
+X_test = pd.DataFrame(X_test_pca, index=X_test.index, columns=[f"PC{i+1}" for i in range(n_components_95)])
 
 # =========================
-# 5) Define models
+# 6) Define models
 # =========================
 models = {
     "LogReg": make_pipeline(
@@ -134,7 +117,7 @@ models = {
 }
 
 # =========================
-# 6) Train, CV, Evaluate
+# 7) Train, CV, Evaluate
 # =========================
 results = []
 probas = {}
@@ -167,7 +150,7 @@ for r in results:
     print(f"{r['model']:16s} Acc={r['acc']:.3f}  ROC-AUC={r['roc_auc'] if not np.isnan(r['roc_auc']) else float('nan'):.3f}  PR-AUC={r['pr_auc'] if not np.isnan(r['pr_auc']) else float('nan'):.3f}  CV-AUC(train)={r['cv_auc'] if not np.isnan(r['cv_auc']) else float('nan'):.3f}")
 
 # =========================
-# 7) Confusion matrices
+# 8) Confusion matrices
 # =========================
 def plot_confusion(cm, title):
     plt.figure()
@@ -184,7 +167,7 @@ for name, y_pred in preds_map.items():
     plot_confusion(cm, f"Confusion Matrix - {name}")
 
 # =========================
-# 8) Bar chart: Accuracy & ROC-AUC
+# 9) Bar chart: Accuracy & ROC-AUC
 # =========================
 labels_m = [r['model'] for r in results]
 accs = [r['acc'] for r in results]
@@ -201,7 +184,7 @@ plt.legend()
 plt.tight_layout()
 
 # =========================
-# 9) Logistic Regression tuning
+# 10) Logistic Regression tuning
 # =========================
 logreg_grid = GridSearchCV(
     make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, solver="liblinear", class_weight="balanced")),
@@ -213,7 +196,7 @@ best_logreg = logreg_grid.best_estimator_
 print("\nLogReg best params:", logreg_grid.best_params_, "best CV AUC:", logreg_grid.best_score_)
 
 # =========================
-# 10) RandomForest tuning
+# 11) RandomForest tuning
 # =========================
 rf_grid = GridSearchCV(
     make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42)),
@@ -228,7 +211,7 @@ best_rf = rf_grid.best_estimator_
 print("RF best params:", rf_grid.best_params_, "best CV AUC:", rf_grid.best_score_)
 
 # =========================
-# 11) ROC & PR curves
+# 12) ROC & PR curves
 # =========================
 curve_candidates = {
     "LogReg(best)": best_logreg,
@@ -268,7 +251,7 @@ ax.legend()
 fig.tight_layout()
 
 # =========================
-# 12) Interpretability: top LogReg coefficients
+# 13) Interpretability: top LogReg coefficients
 # =========================
 try:
     final_logreg = best_logreg.named_steps["logisticregression"]
