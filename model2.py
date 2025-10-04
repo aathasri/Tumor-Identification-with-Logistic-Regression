@@ -102,18 +102,9 @@ X_test = pd.DataFrame(X_test_pca, index=X_test.index, columns=[f"PC{i+1}" for i 
 # 6) Define models
 # =========================
 models = {
-    "LogReg": make_pipeline(
-        StandardScaler(with_mean=True),
-        LogisticRegression(max_iter=2000, class_weight="balanced", solver="liblinear")
-    ),
-    "LinearSVC(calib)": make_pipeline(
-        StandardScaler(with_mean=True),
-        CalibratedClassifierCV(LinearSVC(class_weight="balanced"), method="isotonic", cv=5)
-    ),
-    "RandomForest": make_pipeline(
-        StandardScaler(with_mean=True),
-        RandomForestClassifier(n_estimators=300, random_state=42)
-    )
+    "LogReg": LogisticRegression(max_iter=2000, class_weight="balanced", solver="liblinear"),
+    "LinearSVC(calib)": CalibratedClassifierCV(LinearSVC(class_weight="balanced"), method="isotonic", cv=5),
+    "RandomForest": RandomForestClassifier(n_estimators=300, random_state=42)
 }
 
 # =========================
@@ -122,18 +113,18 @@ models = {
 results = []
 probas = {}
 preds_map = {}
-for name, pipe in models.items():
-    pipe.fit(X_train, y_train)
+for name, model in models.items():
+    model.fit(X_train, y_train)
     try:
-        cv_auc = cross_val_score(pipe, X_train, y_train, cv=5, scoring="roc_auc").mean()
+        cv_auc = cross_val_score(model, X_train, y_train, cv=5, scoring="roc_auc").mean()
     except Exception:
         cv_auc = np.nan
 
-    y_pred = pipe.predict(X_test)
+    y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
     y_prob = None
     try:
-        y_prob = pipe.predict_proba(X_test)[:, 1]
+        y_prob = model.predict_proba(X_test)[:, 1]
         auc = roc_auc_score(y_test, y_prob)
         pr_auc = average_precision_score(y_test, y_prob)
         probas[name] = y_prob
@@ -187,8 +178,8 @@ plt.tight_layout()
 # 10) Logistic Regression tuning
 # =========================
 logreg_grid = GridSearchCV(
-    make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, solver="liblinear", class_weight="balanced")),
-    param_grid={"logisticregression__C": [0.01, 0.1, 1, 3, 10]},
+    LogisticRegression(max_iter=2000, solver="liblinear", class_weight="balanced"),
+    param_grid={"C": [0.01, 0.1, 1, 3, 10]},
     cv=5, scoring="roc_auc", n_jobs=-1
 )
 logreg_grid.fit(X_train, y_train)
@@ -199,10 +190,10 @@ print("\nLogReg best params:", logreg_grid.best_params_, "best CV AUC:", logreg_
 # 11) RandomForest tuning
 # =========================
 rf_grid = GridSearchCV(
-    make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42)),
+    RandomForestClassifier(random_state=42),
     param_grid={
-        "randomforestclassifier__n_estimators": [100, 300, 600],
-        "randomforestclassifier__max_depth": [None, 10, 20]
+        "n_estimators": [100, 300, 600],
+        "max_depth": [None, 10, 20]
     },
     cv=5, scoring="roc_auc", n_jobs=-1
 )
@@ -217,10 +208,7 @@ curve_candidates = {
     "LogReg(best)": best_logreg,
     "RandomForest(best)": best_rf,
 }
-svc_cal = make_pipeline(
-    StandardScaler(with_mean=True),
-    CalibratedClassifierCV(LinearSVC(class_weight="balanced"), method="isotonic", cv=5)
-).fit(X_train, y_train)
+svc_cal = CalibratedClassifierCV(LinearSVC(class_weight="balanced"), method="isotonic", cv=5).fit(X_train, y_train)
 curve_candidates["LinearSVC(calib)"] = svc_cal
 
 fig, ax = plt.subplots()
@@ -254,16 +242,14 @@ fig.tight_layout()
 # 13) Interpretability: top LogReg coefficients
 # =========================
 try:
-    final_logreg = best_logreg.named_steps["logisticregression"]
-    scaler = best_logreg.named_steps["standardscaler"]
-    coef = final_logreg.coef_.ravel()
-    genes = X_train.columns
+    coef = best_logreg.coef_.ravel()
+    pc_names = X_train.columns
     idx = np.argsort(np.abs(coef))[-15:]
-    top_pairs = list(zip(genes[idx], coef[idx]))
-    print("\nTop 15 LogReg features (PC, coef):")
-    for g, c in top_pairs[::-1]:
-        print(f"{g:20s} {c:+.3f}")
-except Exception:
-    pass
+    top_pairs = list(zip(pc_names[idx], coef[idx]))
+    print("\nTop 15 LogReg Principal Components (PC, coef):")
+    for pc, c in top_pairs[::-1]:
+        print(f"{pc:20s} {c:+.3f}")
+except Exception as e:
+    print(f"Could not extract coefficients: {e}")
 
 plt.show()
