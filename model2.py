@@ -49,7 +49,7 @@ y_bin = (y == "tumor").astype(int)
 X_train, X_test, y_train, y_test = train_test_split(
     X, y_bin, test_size=0.25, stratify=y_bin, random_state=42
 )
-print("Train/Test sizes:", X_train.shape, X_test.shape)
+print("Pre PCA Train/Test sizes:", X_train.shape, X_test.shape)
 
 # =========================
 # 5) Preprocess + PCA (fit only on training data)
@@ -97,7 +97,7 @@ X_test_pca = pca.transform(X_test_scaled)
 # Convert to DataFrame for consistency
 X_train = pd.DataFrame(X_train_pca, index=X_train.index, columns=[f"PC{i+1}" for i in range(n_components_95)])
 X_test = pd.DataFrame(X_test_pca, index=X_test.index, columns=[f"PC{i+1}" for i in range(n_components_95)])
-
+print("Post PCA Train/Test sizes:", X_train.shape, X_test.shape)
 # =========================
 # 6) Define models
 # =========================
