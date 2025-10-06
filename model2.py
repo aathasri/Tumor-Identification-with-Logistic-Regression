@@ -103,7 +103,7 @@ print("Post PCA Train/Test sizes:", X_train.shape, X_test.shape)
 # =========================
 models = {
     "LogReg": LogisticRegression(max_iter=2000, class_weight="balanced", solver="liblinear"),
-    "LinearSVC(calib)": CalibratedClassifierCV(LinearSVC(class_weight="balanced"), method="isotonic", cv=5),
+    "LinearSVC(calib)": CalibratedClassifierCV(LinearSVC(class_weight="balanced", dual="auto"), method="isotonic", cv=5),
     "RandomForest": RandomForestClassifier(n_estimators=300, random_state=42)
 }
 
@@ -253,3 +253,11 @@ except Exception as e:
     print(f"Could not extract coefficients: {e}")
 
 plt.show()
+
+# =========================
+# 14) Per-sample Logistic Regression predictions
+# =========================
+print("\nPer-sample predictions (LogReg best):")
+y_prob_logreg = best_logreg.predict_proba(X_test)[:, 1]
+for sid, p in zip(X_test.index[:3], y_prob_logreg):
+    print(f"{sid}: true={int(y_bin.loc[sid])} (tumor=1), predicted_prob_tumor={p:.3f}")
