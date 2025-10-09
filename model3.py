@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import GEOparse
 
-from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
+from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV, learning_curve
 from sklearn.preprocessing import StandardScaler, FunctionTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -143,7 +143,7 @@ pipelines = {
     "LR_KBest_PCA": (
         Pipeline(
             [
-                ("log2", log2_tf),
+                # ("log2", log2_tf),
                 ("impute", SimpleImputer(strategy="median")),
                 ("var", VarianceThreshold(0.0)),
                 ("kbest", SelectKBest(score_func=f_classif, k=1000)),
@@ -167,7 +167,7 @@ pipelines = {
     "LinearSVC_KBest": (
         Pipeline(
             [
-                ("log2", log2_tf),
+                # ("log2", log2_tf),
                 ("impute", SimpleImputer(strategy="median")),
                 ("var", VarianceThreshold(0.0)),
                 ("kbest", SelectKBest(score_func=f_classif, k=1000)),
@@ -181,7 +181,7 @@ pipelines = {
     "RF_KBest": (
         Pipeline(
             [
-                ("log2", log2_tf),
+                # ("log2", log2_tf),
                 ("impute", SimpleImputer(strategy="median")),
                 ("var", VarianceThreshold(0.0)),
                 ("kbest", SelectKBest(score_func=f_classif, k=1000)),
@@ -320,3 +320,44 @@ ax.legend()
 fig.tight_layout()
 
 plt.show()
+
+# =========================
+# 6) Learning curves (saved to PNG)
+# =========================
+
+def plot_and_save_learning_curve(est, X, y, cv, name, scoring="roc_auc"):
+    train_sizes = np.linspace(0.2, 1.0, 5)
+    sizes, train_scores, val_scores = learning_curve(
+        est,
+        X,
+        y,
+        cv=cv,
+        scoring=scoring,
+        n_jobs=-1,
+        train_sizes=train_sizes,
+        shuffle=True,
+        random_state=42,
+    )
+    train_mean = train_scores.mean(axis=1)
+    train_std = train_scores.std(axis=1)
+    val_mean = val_scores.mean(axis=1)
+    val_std = val_scores.std(axis=1)
+
+    plt.figure()
+    plt.fill_between(sizes, train_mean - train_std, train_mean + train_std, alpha=0.2, label="Train ±1σ")
+    plt.fill_between(sizes, val_mean - val_std, val_mean + val_std, alpha=0.2, label="CV ±1σ")
+    plt.plot(sizes, train_mean, marker="o", label="Train")
+    plt.plot(sizes, val_mean, marker="s", label="CV")
+    plt.xlabel("Training samples")
+    plt.ylabel(scoring)
+    plt.title(f"Learning Curve - {name}")
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.tight_layout()
+    out = f"learning_curve_{name}.png"
+    plt.savefig(out, dpi=150)
+    print(f"Saved learning curve: {out}")
+
+for name in res_df["model"]:
+    est = best_estimators[name]
+    plot_and_save_learning_curve(est, X_train, y_train, cv, name, scoring="roc_auc")
