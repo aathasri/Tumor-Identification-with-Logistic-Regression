@@ -15,8 +15,8 @@ This project demonstrates a complete ML workflow for cancer classification:
 
 ### Step 1: Clone or Download the Script
 ```bash
-git clone <repository-url>
-cd <repository-name>
+git clone https://github.com/aathasri/Tumor-Identification-with-Logistic-Regression.git
+cd Tumor-Identification-with-Logistic-Regression
 ```
 
 ### Step 2: Create a Virtual Environment (Recommended)
