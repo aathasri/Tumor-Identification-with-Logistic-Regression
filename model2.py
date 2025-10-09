@@ -145,12 +145,14 @@ for r in results:
 # =========================
 def plot_confusion(cm, title):
     plt.figure()
-    plt.imshow(cm, interpolation='nearest')
+    plt.imshow(cm, interpolation='nearest', cmap='Blues')
     plt.title(title)
     plt.xlabel("Predicted")
     plt.ylabel("True")
+    threshold = cm.max() / 2
     for (i, j), val in np.ndenumerate(cm):
-        plt.text(j, i, int(val), ha='center', va='center')
+        color = 'white' if cm[i, j] > threshold else 'black'
+        plt.text(j, i, int(val), ha='center', va='center', color=color)
     plt.tight_layout()
 
 for name, y_pred in preds_map.items():
