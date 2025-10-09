@@ -129,3 +129,11 @@ The pipeline generates:
 ### 8. Interpretability
 
 Extracts and displays the top 15 most important principal components from the best Logistic Regression model, showing coefficient magnitudes for tumor prediction.
+
+## Contributors
+
+- Chen, Wayne
+- Huang, Calvin
+- McBride, Michael
+- Sriharan, Aathavan
+- Zhu, Yiming
