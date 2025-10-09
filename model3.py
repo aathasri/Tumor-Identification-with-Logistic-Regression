@@ -122,11 +122,11 @@ print(
 
 
 # =========================
-# 3) Split: hold out 16 for test
+# 3) Split: hold out 21 for test
 # =========================
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y_bin, test_size=16, stratify=y_bin, random_state=42
+    X, y_bin, test_size=21, stratify=y_bin, random_state=42
 )
 print("Train/Test sizes:", X_train.shape, X_test.shape)
 
