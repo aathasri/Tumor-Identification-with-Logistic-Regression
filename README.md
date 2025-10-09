@@ -14,7 +14,10 @@ This project demonstrates a complete ML workflow for cancer classification:
 ## Installation & Setup
 
 ### Step 1: Clone or Download the Script
-Clone the repo in your working directory.
+```bash
+git clone <repository-url>
+cd <repository-name>
+```
 
 ### Step 2: Create a Virtual Environment (Recommended)
 ```bash
