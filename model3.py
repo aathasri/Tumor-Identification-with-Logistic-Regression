@@ -319,6 +319,48 @@ ax.grid(True, alpha=0.3)
 ax.legend()
 fig.tight_layout()
 
+# =========================
+# 5.1) Histograms: top-3 features by ANOVA F (train vs test)
+# =========================
+try:
+    # Compute univariate F-scores on training data to pick top features
+    fscores, _ = f_classif(X_train, y_train)
+    fscores = np.asarray(fscores)
+    order = np.argsort(np.nan_to_num(fscores, nan=-np.inf))[::-1]
+    top_idx = [i for i in order if np.isfinite(fscores[i])][:3]
+    top_feats = [X_train.columns[i] for i in top_idx]
+    print("Top 3 features by ANOVA F:", top_feats)
+
+    n = len(top_feats)
+    fig, axes = plt.subplots(1, n, figsize=(4*n, 3), sharey=True)
+    if n == 1:
+        axes = [axes]
+
+    def maybe_log2_arr(arr):
+        try:
+            return np.log2(arr + 1.0) if np.nanmax(arr) > 50 else arr
+        except Exception:
+            return arr
+
+    for ax, feat in zip(axes, top_feats):
+        tr = X_train[feat].astype(float).to_numpy()
+        te = X_test[feat].astype(float).to_numpy()
+        tr = tr[~np.isnan(tr)]
+        te = te[~np.isnan(te)]
+        tr_v = maybe_log2_arr(tr)
+        te_v = maybe_log2_arr(te)
+
+        ax.hist(tr_v, bins=30, alpha=0.6, label="Train", color="C0")
+        ax.hist(te_v, bins=30, alpha=0.6, label="Test", color="C1")
+        ax.set_title(f"{feat}")
+        ax.set_xlabel("Value")
+    axes[0].set_ylabel("Count")
+    axes[0].legend()
+    fig.suptitle("Top-3 features (ANOVA F): Train vs Test")
+    fig.tight_layout()
+except Exception as e:
+    print(f"[WARN] Could not plot top-feature histograms: {e}")
+
 plt.show()
 
 # =========================
