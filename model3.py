@@ -126,7 +126,7 @@ print(
 # =========================
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y_bin, test_size=2, stratify=y_bin, random_state=42
+    X, y_bin, test_size=21, stratify=y_bin, random_state=42
 )
 print("Train/Test sizes:", X_train.shape, X_test.shape)
 
@@ -143,7 +143,7 @@ pipelines = {
     "LR_KBest_PCA": (
         Pipeline(
             [
-                # ("log2", log2_tf),
+                ("log2", log2_tf),
                 ("impute", SimpleImputer(strategy="median")),
                 ("var", VarianceThreshold(0.0)),
                 ("kbest", SelectKBest(score_func=f_classif, k=1000)),
@@ -167,7 +167,7 @@ pipelines = {
     "LinearSVC_KBest": (
         Pipeline(
             [
-                # ("log2", log2_tf),
+                ("log2", log2_tf),
                 ("impute", SimpleImputer(strategy="median")),
                 ("var", VarianceThreshold(0.0)),
                 ("kbest", SelectKBest(score_func=f_classif, k=1000)),
@@ -181,7 +181,7 @@ pipelines = {
     "RF_KBest": (
         Pipeline(
             [
-                # ("log2", log2_tf),
+                ("log2", log2_tf),
                 ("impute", SimpleImputer(strategy="median")),
                 ("var", VarianceThreshold(0.0)),
                 ("kbest", SelectKBest(score_func=f_classif, k=1000)),
