@@ -126,7 +126,7 @@ print(
 # =========================
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y_bin, test_size=21, stratify=y_bin, random_state=42
+    X, y_bin, test_size=2, stratify=y_bin, random_state=42
 )
 print("Train/Test sizes:", X_train.shape, X_test.shape)
 
@@ -363,43 +363,39 @@ except Exception as e:
 
 plt.show()
 
-# =========================
-# 6) Learning curves (saved to PNG)
-# =========================
 
-def plot_and_save_learning_curve(est, X, y, cv, name, scoring="roc_auc"):
-    train_sizes = np.linspace(0.2, 1.0, 5)
+# Learning curves (errors) combined: plot 1 - score for train/CV vs training size in subplots
+
+def _compute_and_plot_errors(ax, est, X, y, cv, scoring="roc_auc"):
     sizes, train_scores, val_scores = learning_curve(
-        est,
-        X,
-        y,
-        cv=cv,
-        scoring=scoring,
-        n_jobs=-1,
-        train_sizes=train_sizes,
-        shuffle=True,
-        random_state=42,
+        est, X, y, cv=cv, scoring=scoring, n_jobs=-1,
+        train_sizes=np.linspace(0.2, 1.0, 5), shuffle=True, random_state=42,
     )
-    train_mean = train_scores.mean(axis=1)
-    train_std = train_scores.std(axis=1)
-    val_mean = val_scores.mean(axis=1)
-    val_std = val_scores.std(axis=1)
+    tr = 1.0 - train_scores
+    va = 1.0 - val_scores
+    tr_m, tr_s = tr.mean(axis=1), tr.std(axis=1)
+    va_m, va_s = va.mean(axis=1), va.std(axis=1)
+    ax.fill_between(sizes, tr_m - tr_s, tr_m + tr_s, alpha=0.15, color="C0", label="Train error 1sd")
+    ax.fill_between(sizes, va_m - va_s, va_m + va_s, alpha=0.15, color="C1", label="CV error 1sd")
+    ax.plot(sizes, tr_m, marker="o", color="C0", label="Train error")
+    ax.plot(sizes, va_m, marker="s", color="C1", label="CV error")
+    ax.set_xlabel("Training samples")
+    ax.set_ylabel(f"Error (1 - {scoring})")
+    ax.grid(True, alpha=0.3)
 
-    plt.figure()
-    plt.fill_between(sizes, train_mean - train_std, train_mean + train_std, alpha=0.2, label="Train ±1σ")
-    plt.fill_between(sizes, val_mean - val_std, val_mean + val_std, alpha=0.2, label="CV ±1σ")
-    plt.plot(sizes, train_mean, marker="o", label="Train")
-    plt.plot(sizes, val_mean, marker="s", label="CV")
-    plt.xlabel("Training samples")
-    plt.ylabel(scoring)
-    plt.title(f"Learning Curve - {name}")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
-    plt.tight_layout()
-    out = f"learning_curve_{name}.png"
-    plt.savefig(out, dpi=150)
-    print(f"Saved learning curve: {out}")
-
-for name in res_df["model"]:
-    est = best_estimators[name]
-    plot_and_save_learning_curve(est, X_train, y_train, cv, name, scoring="roc_auc")
+try:
+    models_to_plot = list(res_df["model"])[:3]
+    n = len(models_to_plot)
+    fig, axes = plt.subplots(1, n, figsize=(5*n, 3), sharey=True)
+    if n == 1:
+        axes = [axes]
+    for i, name in enumerate(models_to_plot):
+        _compute_and_plot_errors(axes[i], best_estimators[name], X_train, y_train, cv, scoring="roc_auc")
+        axes[i].set_title(name)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=2)
+    fig.suptitle("Learning Curves (Errors)")
+    fig.tight_layout(rect=[0, 0, 1, 0.9])
+    plt.show()
+except Exception as e:
+    print(f"[WARN] Could not create combined learning-curve figure: {e}")
