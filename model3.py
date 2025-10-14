@@ -128,8 +128,75 @@ print(
 X_train, X_test, y_train, y_test = train_test_split(
     X, y_bin, test_size=21, stratify=y_bin, random_state=42
 )
+
+# =========================
+# PCA Elbow Curves for different KBest selections
+# =========================
+
+def plot_pca_elbows(X, y, k_values=[300, 1000, 3000]):
+    plt.figure(figsize=(8,5))
+    
+    for k in k_values:
+        # Select top-k features
+        selector = SelectKBest(score_func=f_classif, k=min(k, X.shape[1]))
+        X_kbest = selector.fit_transform(X, y)
+
+        # Standardize
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X_kbest)
+
+        # PCA
+        pca = PCA()
+        pca.fit(X_scaled)
+        cum_var = np.cumsum(pca.explained_variance_ratio_)
+
+        plt.plot(
+            range(1, len(cum_var)+1), cum_var, marker='o', linestyle='--', label=f"Top-{k} features"
+        )
+
+    # Add reference lines for variance thresholds
+    plt.axhline(y=0.95, color='r', linestyle=':', label='95% variance')
+    plt.axhline(y=0.99, color='g', linestyle=':', label='99% variance')
+
+    plt.gca().invert_yaxis()
+
+    plt.xlabel("Number of PCA components")
+    plt.ylabel("Cumulative Explained Variance")
+    plt.title("PCA Elbow Curve for Different KBest Selections")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+# Detailed train/test split validation
+train_counts = np.bincount(y_train)
+test_counts = np.bincount(y_test)
+
+print("\n" + "="*60)
+print("TRAIN/TEST SPLIT VALIDATION")
+print(f"Training set:   {len(y_train)} samples")
+print(f"  - Normal (0): {train_counts[0]} ({train_counts[0]/len(y_train)*100:.1f}%)")
+print(f"  - Tumor (1):  {train_counts[1]} ({train_counts[1]/len(y_train)*100:.1f}%)")
+print(f"\nTest set:       {len(y_test)} samples")
+print(f"  - Normal (0): {test_counts[0]} ({test_counts[0]/len(y_test)*100:.1f}%)")
+print(f"  - Tumor (1):  {test_counts[1]} ({test_counts[1]/len(y_test)*100:.1f}%)")
+
+# Check if stratification worked properly
+train_ratio = train_counts[1] / len(y_train) if len(y_train) > 0 else 0
+test_ratio = test_counts[1] / len(y_test) if len(y_test) > 0 else 0
+ratio_diff = abs(train_ratio - test_ratio)
+
+print(f"\nTumor proportion difference: {ratio_diff*100:.2f}%")
+if ratio_diff < 0.05:
+    print("Stratification successful - similar class distributions")
+else:
+    print("Class distributions differ between train/test")
+
+print("="*60)
+
 print("Train/Test sizes:", X_train.shape, X_test.shape)
 
+plot_pca_elbows(X_train, y_train, k_values=[300, 1000, 3000])
 
 # =========================
 # 4) Pipelines: feature selection + models
@@ -243,7 +310,6 @@ for name, (pipe, grid_params) in pipelines.items():
     print(
         f"{name}: test Acc={acc:.3f}, ROC-AUC={roc_auc:.3f}, PR-AUC={pr_auc:.3f}, CV-AUC={grid.best_score_:.3f}"
     )
-
 
 # =========================
 # 5) Summaries and plots
@@ -399,3 +465,27 @@ try:
     plt.show()
 except Exception as e:
     print(f"[WARN] Could not create combined learning-curve figure: {e}")
+
+# =========================
+# Our result shows that using LR with 0.5 threshold will have 1 FN -> Bad
+# Quick prediction with threshold 0.4
+# =========================
+
+model = best_estimators['LR_KBest_PCA']
+
+# For the entire test set:
+y_proba = model.predict_proba(X_test)[:, 1]  # Get probabilities
+y_pred_0_4 = (y_proba >= 0.4).astype(int)     # Apply threshold 0.4
+
+# Evaluate
+print("\n" + "="*60)
+print("RESULTS WITH THRESHOLD 0.4")
+print("="*60)
+tn, fp, fn, tp = confusion_matrix(y_test, y_pred_0_4).ravel()
+print(f"True Negatives:  {tn}")
+print(f"False Positives: {fp}")
+print(f"False Negatives: {fn} (Missed tumors)")
+print(f"True Positives:  {tp}")
+print(f"Accuracy: {accuracy_score(y_test, y_pred_0_4):.1%}")
+print(f"Sensitivity: {tp/(tp+fn):.1%} (tumor detection rate)")
+print("="*60)
