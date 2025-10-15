@@ -332,7 +332,7 @@ try:
         lr_95 = clone(lr_est).set_params(pca__n_components=0.99)
         lr_95.fit(X_train, y_train)
         pca95 = lr_95.named_steps["pca"]
-        print(f"LR_KBest_PCA with PCA(0.95): components kept={pca95.n_components_}")
+        print(f"LR_KBest_PCA with PCA(0.99): components kept={pca95.n_components_}")
 except Exception as e:
     print(f"[WARN] Could not report PCA components: {e}")
 
