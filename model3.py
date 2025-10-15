@@ -20,6 +20,7 @@ from sklearn.metrics import (
     PrecisionRecallDisplay,
     confusion_matrix,
 )
+from sklearn.base import clone
 
 
 # =========================
@@ -248,6 +249,26 @@ for name, (pipe, grid_params) in pipelines.items():
 # =========================
 # 5) Summaries and plots
 # =========================
+
+# Report how many PCA components are kept at 0.95 for LR_KBest_PCA
+try:
+    if "LR_KBest_PCA" in best_estimators:
+        lr_est = best_estimators["LR_KBest_PCA"]
+        pca_step = lr_est.named_steps.get("pca")
+        kbest_k = lr_est.get_params().get("kbest__k", None)
+        chosen_thresh = lr_est.get_params().get("pca__n_components", None)
+        kept_in_refit = getattr(pca_step, "n_components_", None)
+        print(
+            f"\nLR_KBest_PCA: KBest k={kbest_k}, chosen PCA threshold={chosen_thresh}, components kept in refit={kept_in_refit}"
+        )
+
+        # Force PCA threshold to 0.95 and report number of components kept
+        lr_95 = clone(lr_est).set_params(pca__n_components=0.99)
+        lr_95.fit(X_train, y_train)
+        pca95 = lr_95.named_steps["pca"]
+        print(f"LR_KBest_PCA with PCA(0.95): components kept={pca95.n_components_}")
+except Exception as e:
+    print(f"[WARN] Could not report PCA components: {e}")
 
 res_df = pd.DataFrame(results).sort_values("roc_auc", ascending=False)
 print("\nModel comparison (sorted by test ROC-AUC):\n", res_df[["model", "acc", "roc_auc", "pr_auc", "cv_auc", "best_params"]])
