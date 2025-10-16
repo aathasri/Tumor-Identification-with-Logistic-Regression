@@ -38,7 +38,7 @@ pip install numpy pandas matplotlib scikit-learn GEOparse
 
 ### Step 4: Run the Script
 ```bash
-python model.py
+python model3.py
 ```
 
 **What happens when you run it:**
@@ -129,3 +129,8 @@ The pipeline generates:
 ### 8. Interpretability
 
 Extracts and displays the top 15 most important principal components from the best Logistic Regression model, showing coefficient magnitudes for tumor prediction.
+
+### Optional Data Tables
+If you'd like to see the raw data as it is extracted from GEOParse, run table_maker.py.
+It will generate the GSE15852_probe_data.tsv and GSE15852_metadata.tsv files if they do not exist which uses pandas
+to take the GEOParse data and put it into readable spreadsheets.
