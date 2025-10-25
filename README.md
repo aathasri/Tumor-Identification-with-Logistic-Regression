@@ -134,3 +134,10 @@ Extracts and displays the top 15 most important principal components from the be
 If you'd like to see the raw data as it is extracted from GEOParse, run table_maker.py.
 It will generate the GSE15852_probe_data.tsv and GSE15852_metadata.tsv files if they do not exist which uses pandas
 to take the GEOParse data and put it into readable spreadsheets.
+## Contributors
+
+- Chen, Wayne
+- Huang, Calvin
+- McBride, Michael
+- Sriharan, Aathavan
+- Zhu, Yiming
