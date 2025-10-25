@@ -1,3 +1,7 @@
 *venv
 *.gz
 .idea/
+
+# GEO / GSE tables and metadata
+GSE*.tsv
+metadata_GSE*.tsv
